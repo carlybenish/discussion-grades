@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><?= courseName ?> Grades</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --ink: #16191d;
+    --muted: #5d6671;
+    --faint: #8b939d;
+    --line: #e3e6ea;
+    --line-strong: #cdd2d8;
+    --accent: #1d5c86;
+    --accent-ink: #ffffff;
+    --accent-soft: #dfecf5;
+    --ok: #2b7a4b;
+    --ok-ink: #ffffff;
+    --err: #b3261e;
+    --err-soft: #fbe8e6;
+    --warn: #8a5a00;
+    --warn-soft: #fff3cf;
+    --flash: #fff0b0;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101317;
+      --surface: #191d22;
+      --ink: #e9ebee;
+      --muted: #a4acb6;
+      --faint: #79828d;
+      --line: #282e35;
+      --line-strong: #3a424c;
+      --accent: #74b3df;
+      --accent-ink: #0b1822;
+      --accent-soft: #1a2c3a;
+      --ok: #6cc592;
+      --ok-ink: #0c1a12;
+      --err: #f28b82;
+      --err-soft: #3a1d1b;
+      --warn: #e7c06a;
+      --warn-soft: #362c12;
+      --flash: #4a4114;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:disabled { cursor: default; opacity: .4; }
+
+  /* ---------- sticky header ---------- */
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar, .tabs, .strip { max-width: 760px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+  .bar { display: flex; align-items: center; gap: 12px; padding-top: 10px; padding-bottom: 8px; }
+  .brand { font-weight: 700; letter-spacing: -.01em; white-space: nowrap; }
+  .brand span { color: var(--muted); font-weight: 500; }
+  .day { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .day select {
+    appearance: none;
+    -webkit-appearance: none;
+    min-width: 0;
+    height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    background: var(--surface);
+    font-size: 16px;
+    font-weight: 650;
+    text-align: center;
+  }
+  .icon-btn {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    background: var(--surface);
+    font-size: 20px;
+    line-height: 1;
+  }
+  .status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .status.ok::before { background: var(--ok); }
+  .status.busy::before { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  .status.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+  .status.warn::before { background: var(--warn); }
+  .status.err { color: var(--err); background: var(--err-soft); border-color: transparent; font-weight: 600; }
+  .status.err::before { background: var(--err); }
+
+  .alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    background: var(--err);
+    color: var(--surface);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .alert-text { flex: 1; min-width: 0; }
+  .alert-text small { display: block; font-weight: 500; opacity: .9; }
+  .alert button {
+    flex: none;
+    height: 34px;
+    padding: 0 14px;
+    border: 1.5px solid currentColor;
+    border-radius: 8px;
+    background: transparent;
+    font-weight: 650;
+  }
+
+  .tabs { display: flex; gap: 6px; padding-bottom: 8px; }
+  .tab {
+    flex: 1;
+    padding: 6px 0 5px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+  .tab small { display: block; font-size: 11.5px; font-weight: 500; color: var(--muted); }
+  .tab[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .tab[aria-current="true"] small { color: inherit; opacity: .85; }
+
+  .strip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip-label { flex: none; font-size: 12px; color: var(--muted); margin-right: 2px; }
+  .chip {
+    flex: none;
+    min-width: 34px;
+    height: 30px;
+    padding: 0 8px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 15px;
+    background: var(--surface);
+    font-size: 13px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+  .chip.part { border-color: var(--accent); color: var(--accent); }
+  .chip.done { border-color: var(--ok); background: var(--ok); color: var(--ok-ink); }
+
+  /* ---------- section view ---------- */
+  main { max-width: 760px; margin: 0 auto; padding: 14px 16px 120px; }
+  .summary { padding: 2px 2px 4px; }
+  .sum-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+  .sum-title { font-size: 21px; font-weight: 750; letter-spacing: -.015em; }
+  .sum-date { color: var(--muted); }
+  .sum-count { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .sum-count b { color: var(--ink); font-size: 19px; }
+  .avg { color: var(--muted); margin-left: 6px; }
+  .meter { height: 6px; margin: 9px 0 12px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--ok); transition: width .35s ease; }
+  .tools { display: flex; align-items: center; gap: 12px; }
+  .tools input[type="search"] {
+    flex: 1;
+    min-width: 0;
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    background: var(--surface);
+    font-size: 16px;
+  }
+  .toggle { display: flex; align-items: center; gap: 7px; white-space: nowrap; color: var(--muted); font-size: 14px; }
+  .toggle input { width: 19px; height: 19px; margin: 0; accent-color: var(--accent); }
+  .whoami { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+  .whoami input {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    font-size: 16px;
+  }
+
+  .table {
+    margin: 14px 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+    scroll-margin-top: calc(var(--head-h, 150px) + 10px);
+  }
+  .table h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 9px 12px 9px 14px;
+    font-size: 15px;
+    font-weight: 750;
+  }
+  .tcount { margin-left: auto; color: var(--muted); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .tcount.full { color: var(--ok); font-weight: 650; }
+  .group-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px 6px 14px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  .fill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+    color: var(--faint);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .table h2 .fill { margin-left: 4px; }
+  .fill-in {
+    width: 50px;
+    height: 30px;
+    border: 1.5px dashed var(--line-strong);
+    border-radius: 7px;
+    background: transparent;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 650;
+  }
+  .fill-in:focus { outline: none; border-style: solid; border-color: var(--accent); }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 6px 10px 6px 14px;
+    border-top: 1px solid var(--line);
+    scroll-margin: calc(var(--head-h, 150px) + 12px) 0 100px;
+  }
+  .who { flex: 1; min-width: 0; }
+  .name { overflow-wrap: anywhere; }
+  /* A 0 almost always means absent: strike the name so a past day shows who wasn't there at a glance. */
+  .row.is-zero .name { text-decoration: line-through; color: var(--muted); }
+  .tag {
+    margin-left: 7px;
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-size: 11px;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .msg { display: block; color: var(--err); font-size: 12.5px; font-weight: 600; }
+  .msg.note { color: var(--warn); }
+  .msg:empty { display: none; }
+  .mark { flex: none; width: 18px; text-align: center; font-size: 14px; font-weight: 700; }
+  .late-btn {
+    flex: none;
+    height: 28px;
+    padding: 0 9px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 14px;
+    background: transparent;
+    color: var(--faint);
+    font-size: 12px;
+    font-weight: 650;
+  }
+  .late-btn[aria-pressed="true"] { border-color: var(--warn); background: var(--warn-soft); color: var(--warn); }
+  .row.is-late { box-shadow: inset 3px 0 0 var(--warn); }
+  /* Late fills in the max, so an empty late box is one someone cleared: it looks empty too, "max 9" only while on it. */
+  .row.is-late .grade:focus::placeholder { color: var(--warn); font-size: 15px; font-weight: 650; opacity: .7; }
+  /* How late: opens under a late student's name and sets the most they can get. The six ranges get a line of their
+     own, shared evenly, so "11–15" still fits on a 375-wide iPhone. */
+  .late-pick { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: -2px 0 2px; }
+  .late-pick-label { color: var(--warn); font-size: 12px; font-weight: 650; white-space: nowrap; }
+  .late-mins { flex: 1 0 100%; display: flex; gap: 4px; }
+  .late-min {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 30px;
+    padding: 0;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 15px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+  .late-min[aria-pressed="true"] { border-color: var(--warn); background: var(--warn); color: var(--surface); }
+  .late-max { margin-left: auto; color: var(--warn); font-size: 13px; font-weight: 650; white-space: nowrap; }
+  .late-count { color: var(--warn); }
+  .table-ta { color: var(--muted); font-weight: 500; }
+  .ta-line { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px; }
+  .ta-chip {
+    display: inline-block;
+    padding: 4px 9px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+  .ta-chip b { color: var(--ink); font-weight: 650; }
+  .ta-chip.role { background: transparent; }
+  .row[data-s="saved"] .mark::before { content: "✓"; color: var(--ok); }
+  .row[data-s="saving"] .mark::before { content: "●"; color: var(--accent); font-size: 9px; animation: pulse 1s ease-in-out infinite; }
+  .row[data-s="error"] .mark::before { content: "!"; color: var(--err); }
+  .grade {
+    flex: none;
+    width: 66px;
+    height: 42px;
+    border: 1.5px solid var(--line-strong);
+    border-radius: 9px;
+    background: var(--surface);
+    text-align: center;
+    font-size: 19px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+  .grade:focus, .tools input:focus, .whoami input:focus, .add-form input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .grade:disabled { opacity: .45; }
+  /* An empty box looks empty. The faint 10 shows only in the box you're on, where Enter gives it. */
+  .grade::placeholder { color: transparent; }
+  .grade:focus::placeholder { color: var(--faint); font-weight: 450; opacity: .7; }
+  .row[data-s="error"] .grade { border-color: var(--err); }
+  .row.invalid .grade { border-color: var(--err); background: var(--err-soft); }
+  .row.invalid .mark::before { content: none; }
+  .row.flash { animation: flash 1.8s ease-out; }
+
+  .empty { padding: 28px 8px; color: var(--muted); text-align: center; }
+
+  .add { margin: 18px 2px 0; color: var(--muted); }
+  .add summary { cursor: pointer; padding: 8px 0; font-weight: 600; color: var(--accent); }
+  .add-hint { margin: 2px 0 10px; font-size: 13px; }
+  .add-form { display: flex; flex-wrap: wrap; gap: 8px; }
+  .add-form input, .add-form select {
+    height: 42px;
+    padding: 0 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    background: var(--surface);
+    font-size: 16px;
+  }
+  .add-form input { flex: 1 1 180px; min-width: 0; }
+  .btn {
+    height: 42px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 650;
+  }
+
+  /* ---------- overview ---------- */
+  .ov-head h1 { margin: 2px 0 2px; font-size: 21px; letter-spacing: -.015em; }
+  .ov-head p { margin: 0 0 14px; color: var(--muted); }
+  .ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .card {
+    width: 100%;
+    padding: 16px 16px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    text-align: left;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-top { display: flex; justify-content: space-between; color: var(--muted); font-weight: 650; }
+  .card-big { margin-top: 6px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .card-big b { color: var(--ink); font-size: 30px; font-weight: 750; letter-spacing: -.02em; }
+  .card .meter { margin: 10px 0 10px; }
+  .card-foot { display: flex; justify-content: space-between; gap: 8px; font-size: 13.5px; color: var(--accent); font-weight: 600; }
+  .card-foot.done { color: var(--ok); }
+  .card-foot .avg { font-weight: 500; }
+  .ov-note { margin: 18px 2px 0; color: var(--muted); font-size: 13.5px; }
+  .ov-note a { color: var(--accent); font-weight: 600; }
+
+  .fatal { margin: 40px auto; max-width: 440px; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  .fatal p { margin: 0 0 10px; }
+  .fatal-msg { color: var(--err); font-size: 14px; }
+
+  @keyframes pulse { 50% { opacity: .35; } }
+  @keyframes flash { from { background: var(--flash); } to { background: transparent; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @media (max-width: 560px) {
+    .brand { display: none; }
+    .bar { gap: 8px; }
+    .day { flex: 1; }
+    .day select { flex: 1; padding: 0 8px; }
+    /* On phones the pill shrinks to its colored dot unless something needs attention. */
+    .status:not(.err):not(.warn) { gap: 0; padding: 9px; font-size: 0; }
+  }
+</style>
+</head>
+<body>
+<header class="top" id="top">
+  <div class="bar">
+    <div class="brand"><?= courseName ?> <span>Discussion grades</span></div>
+    <div class="day">
+      <button class="icon-btn" id="prev" aria-label="Previous class day">‹</button>
+      <select id="date" aria-label="Class day"></select>
+      <button class="icon-btn" id="next" aria-label="Next class day">›</button>
+    </div>
+    <div class="status" id="status" role="status">Loading…</div>
+  </div>
+  <nav class="tabs" id="tabs" aria-label="Section"></nav>
+  <div class="strip" id="strip" aria-label="Jump to table" hidden></div>
+  <div class="alert" id="alert" role="alert" hidden>
+    <div class="alert-text" id="alertText"></div>
+    <button type="button" id="retry">Retry now</button>
+  </div>
+</header>
+<main id="main"><p class="empty">Loading the roster…</p></main>
+
+<script>
+(function () {
+  'use strict';
+
+  // The COURSE block from Settings.gs. The server writes it in here when the page loads.
+  const COURSE = <?!= courseJson ?>;
+  const ymd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const SECTIONS = COURSE.sections;
+  const FIRST_DAY = ymd(COURSE.firstDay);
+  const LAST_DAY = ymd(COURSE.lastDay);
+  const CLASS_DAYS = COURSE.classDays.map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(d));
+  const POLL_MS = 5000;
+  const MAX_GRADE = COURSE.maxGrade;
+  const DEFAULT_GRADE = COURSE.defaultGrade;  // a tapped empty box fills in this grade; Enter on an empty box gives it too
+  // How late a student was -> the most they can get: [up to this many minutes, max grade], so 1–5 min -> 9, 6–10 -> 8.
+  // The last one means that late or later. Code.gs's LATE_MINUTES must match.
+  const LATE_STEPS = COURSE.lateSteps;
+  const SLOW_SAVE_MS = 15000;   // a change still unsaved after this long gets the red banner
+  const STUCK_SAVE_MS = 30000;  // a save with no answer at all after this long is sent again
+  const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const store = {
+    get(k) { try { return localStorage.getItem(COURSE.storageKey + '.' + k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(COURSE.storageKey + '.' + k, v); } catch (e) {} }
+  };
+
+  const S = {
+    roster: null,          // {DIS301: [[name, table, group], ...]}
+    me: '',
+    sheetUrl: '',
+    name: store.get('name') || '',
+    dates: sessionDates(),
+    date: null,
+    view: store.get('view') || SECTIONS[0],
+    grades: {},            // "DIS301|Name" -> [grade, enteredBy, updatedMs, table, group, late, lateChangedMs, minutesLate]
+    tas: {},               // "Wed|DIS301" -> {blocks: [[firstTable, lastTable, ta]], lead, support}
+    v: null,
+    loadedDate: null,
+    pending: loadPending(),// "date|DIS301|Name" -> {date, section, student, grade, table, group, state, error}
+    lateFilled: {},        // "date|DIS301|Name" -> the grade Late filled in, while nobody has changed it
+    added: {},             // "date|DIS301" -> [{name, table}] walk-ins not yet saved
+    q: '',
+    onlyMissing: false,
+    pollFails: 0,
+    retryDelay: 0,
+    needsRender: false
+  };
+  if (S.view !== 'overview' && SECTIONS.indexOf(S.view) < 0) S.view = SECTIONS[0];
+  S.date = defaultDate();
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    top: $('top'), date: $('date'), prev: $('prev'), next: $('next'),
+    status: $('status'), tabs: $('tabs'), strip: $('strip'), main: $('main'),
+    alert: $('alert'), alertText: $('alertText'), retry: $('retry')
+  };
+
+  // ------------------------------------------------------------ utilities
+
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    for (const kid of kids.flat()) {
+      if (kid !== null && kid !== undefined && kid !== false) el.append(kid);
+    }
+    return el;
+  }
+
+  function call(fn, ...args) {
+    return new Promise((resolve, reject) => {
+      google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fn](...args);
+    });
+  }
+
+  function errText(err) {
+    const m = err && err.message ? err.message : String(err);
+    return m.replace(/^Exception:\s*/, '');
+  }
+
+  function iso(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function sessionDates() {
+    const out = [];
+    for (const d = new Date(FIRST_DAY); d <= LAST_DAY; d.setDate(d.getDate() + 1)) {
+      if (CLASS_DAYS.indexOf(d.getDay()) >= 0) out.push(iso(d));
+    }
+    return out;
+  }
+
+  /** Today if it's a class day, otherwise the most recent class day. */
+  function defaultDate() {
+    const today = iso(new Date());
+    let pick = S.dates[0];
+    for (const d of S.dates) if (d <= today) pick = d;
+    return pick;
+  }
+
+  function parseIso(date) {
+    const [y, m, d] = date.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function dayLabel(date) {
+    return parseIso(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  /** Matches the spreadsheet tab name, e.g. "Fri 9/11". */
+  function tabName(date) {
+    const d = parseIso(date);
+    return WEEKDAYS[d.getDay()] + ' ' + (d.getMonth() + 1) + '/' + d.getDate();
+  }
+
+  function timeLabel(ms) {
+    return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function norm(s) {
+    return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
+  function normTable(v) {
+    const s = String(v === null || v === undefined ? '' : v).trim();
+    if (!s) return '';
+    const n = Number(s);
+    return isFinite(n) ? n : s;
+  }
+
+  /** '' for blank, a number from 0 to max (10 unless the student was late), or null if it isn't a valid grade. */
+  function parseGrade(raw, max = MAX_GRADE) {
+    const s = String(raw).trim();
+    if (s === '') return '';
+    if (!/^(\d{1,2}(\.\d{0,2})?|\.\d{1,2})$/.test(s)) return null;
+    const n = Number(s);
+    return n >= 0 && n <= max ? n : null;
+  }
+
+  function fmt(g) { return g === '' || g === null || g === undefined ? '' : String(g); }
+
+  function same(a, b) {
+    const fa = fmt(a), fb = fmt(b);
+    return fa === fb || (fa !== '' && fb !== '' && Number(fa) === Number(fb));
+  }
+
+  /** "DIS301" -> "301" for the tabs and headings; a name without a number stays as it is. */
+  function shortName(sec) { const m = /^[A-Za-z]+\s*(\d+)$/.exec(sec); return m ? m[1] : sec; }
+
+  function pct(t) { return t.total ? Math.round(100 * t.graded / t.total) : 0; }
+
+  // ------------------------------------------------------------ grade state
+
+  function loadPending() {
+    const out = {};
+    try {
+      const raw = JSON.parse(store.get('pending') || '{}');
+      for (const [k, p] of Object.entries(raw)) out[k] = Object.assign({}, p, { state: 'queued', since: Date.now() });
+    } catch (e) {}
+    return out;
+  }
+
+  function savePending() {
+    const slim = {};
+    for (const [k, p] of Object.entries(S.pending)) {
+      slim[k] = { date: p.date, section: p.section, student: p.student, grade: p.grade, table: p.table, group: p.group,
+                  kind: p.kind, late: p.late, minutes: p.minutes };
+    }
+    store.set('pending', JSON.stringify(slim));
+  }
+
+  function pendingFor(key) { return S.pending[S.date + '|' + key]; }
+
+  /** What the grade box should show: an unsaved local entry wins over the server's value. */
+  function valueOf(key) {
+    const p = pendingFor(key);
+    if (p) return p.grade;
+    const g = S.grades[key];
+    return g ? g[0] : '';
+  }
+
+  function isGraded(key) { return fmt(valueOf(key)) !== ''; }
+
+  /** Late flag for a student today: an unsaved local change wins over the server's value. */
+  function lateOf(key) {
+    const p = S.pending[S.date + '|' + key + '|late'];
+    if (p) return p.late;
+    const g = S.grades[key];
+    return !!(g && g[5]);
+  }
+
+  /** How late a student was today (one of LATE_STEPS' minutes), or '' if they weren't, or nobody said how late. */
+  function minutesOf(key) {
+    const p = S.pending[S.date + '|' + key + '|late'];
+    if (p) return p.late && p.minutes || '';
+    const g = S.grades[key];
+    return g && g[5] && g[7] || '';
+  }
+
+  /** A step's minutes as TAs see them: "1–5", "6–10", … "26+". */
+  function minutesLabel(m) {
+    const i = LATE_STEPS.findIndex(([s]) => s === m);
+    if (i < 0) return String(m);
+    if (i === LATE_STEPS.length - 1) return m + '+';
+    const from = i ? LATE_STEPS[i - 1][0] + 1 : 1;
+    return from === m ? String(m) : from + '–' + m;
+  }
+
+  /** The most a student can get today: 10, less for coming late. null: flagged late without saying how late. */
+  function maxFor(key) {
+    if (!lateOf(key)) return MAX_GRADE;
+    const step = LATE_STEPS.find(([m]) => m === minutesOf(key));
+    return step ? step[1] : null;
+  }
+
+  function capFor(key) { const m = maxFor(key); return m === null ? MAX_GRADE : m; }
+
+  /** What a tapped empty box fills in: 10, or a late student's max. null: late but not how late, so the grade is typed. */
+  function offerFor(key) {
+    const m = maxFor(key);
+    return m === null ? null : Math.min(DEFAULT_GRADE, m);
+  }
+
+  /** Who covers this section on the selected day: {blocks: [[lo, hi, ta]], lead, support}, or null. */
+  function slotFor(sec) {
+    return S.tas[WEEKDAYS[parseIso(S.date).getDay()] + '|' + sec] || null;
+  }
+
+  function taFor(sec, table) {
+    const slot = slotFor(sec);
+    const block = slot && slot.blocks.find(([lo, hi]) => table >= lo && table <= hi);
+    return block ? block[2] : '';
+  }
+
+  /** Roster students plus anyone graded who isn't on the roster (walk-ins, section switchers). */
+  function studentsFor(sec) {
+    const list = (S.roster[sec] || []).map(([name, table, group]) => ({ key: sec + '|' + name, name, table, group }));
+    const seen = new Set(list.map(s => s.key));
+    const extra = (name, table, group) => {
+      const key = sec + '|' + name;
+      if (seen.has(key)) return;
+      seen.add(key);
+      list.push({ key, name, table: normTable(table), group: String(group || '').toUpperCase(), extra: true });
+    };
+    for (const [key, g] of Object.entries(S.grades)) {
+      if (key.startsWith(sec + '|') && (fmt(g[0]) !== '' || g[5])) extra(key.slice(sec.length + 1), g[3], g[4]);
+    }
+    for (const p of Object.values(S.pending)) {
+      if (p.date === S.date && p.section === sec) extra(p.student, p.table, p.group);
+    }
+    for (const a of S.added[S.date + '|' + sec] || []) extra(a.name, a.table, '');
+    return list;
+  }
+
+  function tally(sec) {
+    const students = studentsFor(sec);
+    let graded = 0, sum = 0, late = 0;
+    for (const s of students) {
+      if (lateOf(s.key)) late++;
+      const v = valueOf(s.key);
+      if (fmt(v) === '') continue;
+      graded++;
+      sum += Number(v) || 0;
+    }
+    return { students, total: students.length, graded, late, avg: graded ? sum / graded : null };
+  }
+
+  function cmpTable(a, b) {
+    const na = Number(a), nb = Number(b);
+    const fa = a !== '—' && isFinite(na), fb = b !== '—' && isFinite(nb);
+    if (fa && fb) return na - nb;
+    if (fa !== fb) return fa ? -1 : 1;
+    return String(a).localeCompare(String(b));
+  }
+
+  function byTable(students) {
+    const map = new Map();
+    for (const s of students) {
+      const t = s.table === '' ? '—' : s.table;
+      if (!map.has(t)) map.set(t, []);
+      map.get(t).push(s);
+    }
+    return [...map.entries()].sort((a, b) => cmpTable(a[0], b[0]));
+  }
+
+  function byGroup(students) {
+    const map = new Map();
+    for (const s of students) {
+      if (!map.has(s.group)) map.set(s.group, []);
+      map.get(s.group).push(s);
+    }
+    return [...map.entries()].sort((a, b) => (a[0] === '') - (b[0] === '') || a[0].localeCompare(b[0]));
+  }
+
+  // ------------------------------------------------------------ header
+
+  function measureHeader() {
+    document.documentElement.style.setProperty('--head-h', els.top.offsetHeight + 'px');
+  }
+
+  function renderTop() {
+    const today = iso(new Date());
+    els.date.replaceChildren(...S.dates.map(d =>
+      h('option', { value: d }, dayLabel(d) + (d === today ? ' · today' : ''))));
+    els.date.value = S.date;
+    const i = S.dates.indexOf(S.date);
+    els.prev.disabled = i <= 0;
+    els.next.disabled = i >= S.dates.length - 1;
+    renderTabs();
+    renderStrip();
+  }
+
+  function renderTabs() {
+    const loaded = S.roster && S.loadedDate === S.date;
+    els.tabs.replaceChildren(
+      ...SECTIONS.map(sec => {
+        const t = loaded ? tally(sec) : null;
+        return h('button', { class: 'tab', 'data-view': sec, 'aria-current': String(S.view === sec) },
+          shortName(sec), h('small', {}, t ? t.graded + '/' + t.total : ' '));
+      }),
+      h('button', { class: 'tab', 'data-view': 'overview', 'aria-current': String(S.view === 'overview') },
+        'All', h('small', {}, 'overview'))
+    );
+  }
+
+  function renderStrip() {
+    if (!S.roster || S.view === 'overview') {
+      els.strip.hidden = true;
+      measureHeader();
+      return;
+    }
+    const loaded = S.loadedDate === S.date;
+    els.strip.hidden = false;
+    els.strip.replaceChildren(
+      h('span', { class: 'strip-label' }, 'Table'),
+      ...byTable(studentsFor(S.view)).map(([table, list]) => {
+        const n = list.filter(s => isGraded(s.key)).length;
+        const cls = !loaded || n === 0 ? '' : n === list.length ? ' done' : ' part';
+        const ta = taFor(S.view, table);
+        return h('button', { class: 'chip' + cls, 'data-table': table,
+          title: `Table ${table}${ta ? ' (' + ta + ')' : ''}: ${n} of ${list.length} graded` }, String(table));
+      })
+    );
+    measureHeader();
+  }
+
+  function updateStatus() {
+    const all = Object.values(S.pending);
+    const errs = all.filter(p => p.state === 'error').length;
+    let cls = '', text;
+    if (errs) { cls = 'err'; text = all.length + ' unsaved'; }
+    else if (all.length) { cls = 'busy'; text = 'Saving…'; }
+    else if (S.pollFails >= 3) { cls = 'warn'; text = 'Reconnecting…'; }
+    else if (!S.roster || S.loadedDate !== S.date) { text = 'Loading…'; }
+    else { cls = 'ok'; text = 'All saved'; }
+    els.status.className = 'status ' + cls;
+    els.status.textContent = text;
+    els.status.title = errs
+      ? 'These grades are kept on this device and will keep retrying. Don’t close this page until the dot turns green.'
+      : '';
+    // Anything that failed, or is taking a while, gets a banner nobody can miss.
+    const now = Date.now();
+    const stuck = all.filter(p => p.state === 'error' || now - (p.since || now) > SLOW_SAVE_MS);
+    els.alert.hidden = !stuck.length;
+    if (stuck.length) {
+      const n = all.length;
+      els.alertText.replaceChildren(
+        n + (n === 1 ? ' change hasn’t' : ' changes haven’t') + ' reached the spreadsheet yet.',
+        h('small', {}, navigator.onLine === false
+          ? 'This device is offline. Keep this page open; they’ll send when it reconnects.'
+          : 'Keep this page open. It keeps retrying.'));
+    }
+    if (els.alert.hidden !== alertWasHidden) { alertWasHidden = els.alert.hidden; measureHeader(); }
+  }
+  let alertWasHidden = true;
+
+  // ------------------------------------------------------------ main views
+
+  function renderMain() {
+    S.needsRender = false;
+    if (!S.roster) return;
+    if (S.view === 'overview') renderOverview();
+    else renderSection(S.view);
+  }
+
+  function countBits(t) {
+    if (S.loadedDate !== S.date) return ['Loading grades…'];
+    // No nulls: replaceChildren() would print them as the text "null".
+    const bits = [h('b', {}, String(t.graded)), ' of ' + t.total + ' graded'];
+    if (t.avg !== null) bits.push(h('span', { class: 'avg' }, '· avg ' + t.avg.toFixed(1)));
+    if (t.late) bits.push(h('span', { class: 'avg late-count' }, '· ' + t.late + ' late'));
+    return bits;
+  }
+
+  function renderSection(sec) {
+    const t = tally(sec);
+    const who = S.me
+      ? h('p', { class: 'whoami' }, 'Signed in as ' + S.me)
+      : h('label', { class: 'whoami' }, 'Your name',
+          h('input', { id: 'myname', type: 'text', value: S.name, maxlength: '60', autocomplete: 'name',
+            placeholder: 'so the head TA knows who entered grades' }));
+    els.main.replaceChildren(
+      h('section', { class: 'summary' },
+        h('div', { class: 'sum-line' },
+          h('div', {}, h('span', { class: 'sum-title' }, 'Section ' + shortName(sec)),
+            h('span', { class: 'sum-date' }, '  ·  ' + dayLabel(S.date))),
+          h('div', { class: 'sum-count', id: 'sumCount' }, ...countBits(t))),
+        h('div', { class: 'meter', 'aria-hidden': 'true' }, h('i', { id: 'sumMeter', style: 'width:' + pct(t) + '%' })),
+        taLine(sec),
+        h('div', { class: 'tools' },
+          h('input', { type: 'search', id: 'q', value: S.q, placeholder: 'Find a student', autocomplete: 'off', 'aria-label': 'Find a student' }),
+          h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'missing', checked: S.onlyMissing }), 'Only ungraded')),
+        who),
+      h('div', { id: 'list' }),
+      addStudentForm(sec)
+    );
+    renderList();
+  }
+
+  /** "Rivera 1–4 · Chen 5–9 · … · Okafor Lead · Lindgren Support"; tapping a block jumps to it. */
+  function taLine(sec) {
+    const slot = slotFor(sec);
+    if (!slot) return null;
+    const chips = slot.blocks.map(([lo, hi, ta]) =>
+      h('button', { type: 'button', class: 'ta-chip', 'data-jump': lo, title: `Jump to ${ta}'s tables (${lo}–${hi})` },
+        h('b', {}, ta), ` Tables ${lo}–${hi}`));
+    if (slot.lead) chips.push(h('span', { class: 'ta-chip role' }, h('b', {}, slot.lead), ' Lead'));
+    if (slot.support) chips.push(h('span', { class: 'ta-chip role' }, h('b', {}, slot.support), ' Support'));
+    return h('div', { class: 'ta-line' }, ...chips);
+  }
+
+  function renderList() {
+    S.needsRender = false;
+    const list = $('list');
+    if (!list || S.view === 'overview') return renderMain();
+    const sec = S.view;
+    const loaded = S.loadedDate === S.date;
+    const q = norm(S.q);
+    const cards = [];
+    for (const [table, members] of byTable(studentsFor(sec))) {
+      const visible = new Set(members.filter(s =>
+        (!q || norm(s.name).includes(q)) && (!S.onlyMissing || !isGraded(s.key))));
+      if (!visible.size) continue;
+      const groups = byGroup(members);
+      const lettered = groups.some(([g]) => g !== '');
+      const card = h('article', { class: 'table', id: 'table-' + table },
+        h('h2', {}, h('span', {}, 'Table ' + table,
+            taFor(sec, table) ? h('span', { class: 'table-ta' }, ' · ' + taFor(sec, table)) : null),
+          h('span', { class: 'tcount', 'data-tcount': table }),
+          lettered ? null : fillBox(members, 'table ' + table)));
+      for (const [g, people] of groups) {
+        const shown = people.filter(s => visible.has(s));
+        if (!shown.length) continue;
+        if (lettered) {
+          card.append(h('div', { class: 'group-head' },
+            h('span', {}, g ? 'Group ' + g : 'Not in a group'),
+            g ? fillBox(people, 'group ' + table + g) : null));
+        }
+        for (const s of shown) card.append(studentRow(s, loaded));
+      }
+      cards.push(card);
+    }
+    if (!cards.length) {
+      cards.push(h('p', { class: 'empty' },
+        S.q ? 'No student matches “' + S.q + '”.'
+          : S.onlyMissing ? 'Everyone in this section has a grade.'
+          : 'No students on the roster for this section.'));
+    }
+    list.replaceChildren(...cards);
+    refreshCounts();
+  }
+
+  function fillBox(members, label) {
+    return h('label', { class: 'fill' }, 'Same for all',
+      h('input', {
+        class: 'fill-in', type: 'text', inputmode: 'decimal', enterkeyhint: 'done', maxlength: '5',
+        autocomplete: 'off', 'aria-label': 'Give everyone in ' + label + ' the same grade',
+        'data-keys': JSON.stringify(members.map(m => m.key))
+      }));
+  }
+
+  function studentRow(s, loaded) {
+    const input = h('input', {
+      class: 'grade', type: 'text', inputmode: 'decimal', enterkeyhint: 'next', maxlength: '5',
+      placeholder: String(DEFAULT_GRADE),
+      autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Grade for ' + s.name,
+      'data-key': s.key, 'data-table': s.table, 'data-group': s.group, disabled: !loaded
+    });
+    input.value = fmt(valueOf(s.key));
+    const row = h('div', { class: 'row', 'data-key': s.key },
+      h('div', { class: 'who' },
+        h('span', { class: 'name' }, s.name),
+        s.extra ? h('span', { class: 'tag' }, 'not on roster') : null,
+        h('span', { class: 'msg' })),
+      h('button', { type: 'button', class: 'late-btn', 'data-late': s.key, 'aria-pressed': 'false',
+        'aria-label': 'Late: ' + s.name, disabled: !loaded }, 'Late'),
+      h('span', { class: 'mark', 'aria-hidden': 'true' }),
+      input,
+      h('div', { class: 'late-pick', role: 'group', 'aria-label': 'How late ' + s.name + ' was', hidden: true },
+        h('span', { class: 'late-pick-label' }, 'Minutes late'),
+        h('span', { class: 'late-max' }),
+        h('div', { class: 'late-mins' },
+          ...LATE_STEPS.map(([m, max]) => h('button', { type: 'button', class: 'late-min', 'data-mins': m,
+            'aria-pressed': 'false', 'aria-label': minutesLabel(m) + ' minutes late, max ' + max, disabled: !loaded },
+            minutesLabel(m))))));
+    paintRow(row);
+    return row;
+  }
+
+  function paintRow(row) {
+    const key = row.dataset.key;
+    const mine = [pendingFor(key), S.pending[S.date + '|' + key + '|late']].filter(Boolean);
+    const failed = mine.find(p => p.state === 'error');
+    const g = S.grades[key];
+    const late = lateOf(key);
+    let state = '';
+    if (mine.length) state = failed ? 'error' : 'saving';
+    else if (g && fmt(g[0]) !== '') state = 'saved';
+    row.dataset.s = state;
+    row.classList.toggle('is-late', late);
+    row.classList.toggle('is-zero', isGraded(key) && Number(valueOf(key)) === 0);
+    const btn = row.querySelector('.late-btn');
+    if (btn) btn.setAttribute('aria-pressed', String(late));
+    const max = maxFor(key);
+    const box = row.querySelector('input.grade');
+    if (box) box.placeholder = !late ? String(DEFAULT_GRADE) : max === null ? 'late' : 'max ' + max;
+    const pick = row.querySelector('.late-pick');
+    if (pick) {
+      pick.hidden = !late;
+      const mins = minutesOf(key);
+      pick.querySelectorAll('[data-mins]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.mins) === mins)));
+      pick.querySelector('.late-max').textContent = max === null ? 'how late?' : 'max ' + max;
+    }
+    const msg = row.querySelector('.msg');
+    if (msg && !row.classList.contains('invalid')) {
+      if (failed) setMsg(row, 'Not saved yet, retrying…', 'save');
+      else if (msg.dataset.kind === 'save') setMsg(row, '');
+    }
+    row.title = failed
+      ? 'Not saved yet, retrying' + (failed.error ? ' (' + failed.error + ')' : '')
+      : g && fmt(g[0]) !== '' && g[1] ? 'Entered by ' + g[1] + (g[2] ? ' at ' + timeLabel(g[2]) : '') : '';
+  }
+
+  function rowFor(key) {
+    return els.main.querySelector('.row[data-key="' + CSS.escape(key) + '"]');
+  }
+
+  function refreshCounts() {
+    renderTabs();
+    renderStrip();
+    if (S.view === 'overview') { renderOverview(); return; }
+    const t = tally(S.view);
+    const count = $('sumCount');
+    if (count) count.replaceChildren(...countBits(t));
+    const meter = $('sumMeter');
+    if (meter) meter.style.width = pct(t) + '%';
+    for (const [table, members] of byTable(t.students)) {
+      const el = els.main.querySelector('[data-tcount="' + CSS.escape(String(table)) + '"]');
+      if (!el) continue;
+      const n = members.filter(s => isGraded(s.key)).length;
+      el.textContent = n + ' / ' + members.length;
+      el.classList.toggle('full', n === members.length);
+    }
+  }
+
+  function addStudentForm(sec) {
+    const maxTable = Math.max(17, ...S.roster[sec].map(r => Number(r[1]) || 0));
+    const name = h('input', { type: 'text', placeholder: 'Last, First', maxlength: '80', autocomplete: 'off', 'aria-label': 'Student name' });
+    const table = h('select', { 'aria-label': 'Table' },
+      ...Array.from({ length: maxTable }, (_, i) => h('option', { value: i + 1 }, 'Table ' + (i + 1))));
+    const form = h('form', { class: 'add-form' }, name, table, h('button', { type: 'submit', class: 'btn' }, 'Add'));
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const n = name.value.replace(/[|]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!n) { name.focus(); return; }
+      const k = S.date + '|' + sec;
+      (S.added[k] = S.added[k] || []).push({ name: n, table: Number(table.value) });
+      name.value = '';
+      S.q = '';
+      S.onlyMissing = false;
+      renderSection(sec);
+      const input = els.main.querySelector('input.grade[data-key="' + CSS.escape(sec + '|' + n) + '"]');
+      if (input) {
+        input.closest('.row').classList.add('flash');
+        input.focus();
+      }
+    });
+    return h('details', { class: 'add' },
+      h('summary', {}, '+ Student not on this list'),
+      h('p', { class: 'add-hint' }, 'For someone who is here but not on this roster (for example, they switched sections). They’re added to the spreadsheet once you enter a grade.'),
+      form);
+  }
+
+  function renderOverview() {
+    const loaded = S.loadedDate === S.date;
+    const tallies = SECTIONS.map(tally);
+    const graded = tallies.reduce((a, t) => a + t.graded, 0);
+    const total = tallies.reduce((a, t) => a + t.total, 0);
+    els.main.replaceChildren(
+      h('section', { class: 'ov-head' },
+        h('h1', {}, dayLabel(S.date)),
+        h('p', {}, loaded ? graded + ' of ' + total + ' students graded across ' + (SECTIONS.length === 1 ? 'the section.' : 'all ' + SECTIONS.length + ' sections.') : 'Loading grades…')),
+      h('div', { class: 'ov-grid' }, ...SECTIONS.map((sec, i) => {
+        const t = tallies[i];
+        const missing = t.total - t.graded;
+        return h('button', { class: 'card', 'data-go': sec },
+          h('div', { class: 'card-top' }, h('span', {}, 'Section ' + shortName(sec)), h('span', {}, loaded ? pct(t) + '%' : '')),
+          h('div', { class: 'card-big' }, loaded ? [h('b', {}, String(t.graded)), ' / ' + t.total + ' graded'] : 'Loading…'),
+          h('div', { class: 'meter', 'aria-hidden': 'true' }, h('i', { style: 'width:' + (loaded ? pct(t) : 0) + '%' })),
+          h('div', { class: 'card-foot' + (loaded && !missing ? ' done' : '') },
+            h('span', {}, !loaded ? '' : missing ? missing + ' still need a grade →' : 'Everyone graded ✓'),
+            loaded && t.avg !== null ? h('span', { class: 'avg' }, 'avg ' + t.avg.toFixed(1)) : null));
+      })),
+      h('p', { class: 'ov-note' },
+        'Grades save to the ', h('b', {}, '“' + tabName(S.date) + '”'),
+        ' tab of the grades spreadsheet the moment they’re entered, and every change is also recorded in the “Change log” tab. ',
+        S.sheetUrl ? h('a', { href: S.sheetUrl, target: '_blank', rel: 'noopener' }, 'Open the spreadsheet') : null)
+    );
+  }
+
+  // ------------------------------------------------------------ saving
+
+  const inflight = new Map();    // pending key -> token of the request now out for it
+  const idleTimers = new WeakMap();
+  let retryTimer = null;
+
+  function setMsg(row, text, kind) {
+    const msg = row.querySelector('.msg');
+    msg.textContent = text;
+    msg.dataset.kind = text ? kind || '' : '';
+    msg.classList.toggle('note', kind === 'note');
+  }
+
+  function showInvalid(row, bad) {
+    row.classList.toggle('invalid', bad);
+    const key = row.dataset.key, max = capFor(key);
+    if (bad) setMsg(row, max < MAX_GRADE ? 'Late ' + minutesLabel(minutesOf(key)) + ' min: enter 0 to ' + max
+      : 'Enter a number from 0 to ' + MAX_GRADE, 'invalid');
+    else if (row.querySelector('.msg').dataset.kind !== 'save') setMsg(row, '');
+  }
+
+  /** Validate a grade box and queue it for saving. Returns false if the value isn't a valid grade. */
+  function commit(input) {
+    clearTimeout(idleTimers.get(input));
+    delete input.dataset.offer;
+    const row = input.closest('.row');
+    const key = input.dataset.key;
+    const g = parseGrade(input.value, capFor(key));
+    showInvalid(row, g === null);
+    if (g === null) return false;
+    if (same(g, valueOf(key))) return true;
+    const i = key.indexOf('|');
+    queueSave({
+      date: S.date, section: key.slice(0, i), student: key.slice(i + 1), grade: g,
+      table: normTable(input.dataset.table), group: input.dataset.group || ''
+    });
+    return true;
+  }
+
+  function commitFill(input) {
+    const g = parseGrade(input.value);
+    if (g === null || g === '') { input.value = ''; return; }
+    const keys = JSON.parse(input.dataset.keys);
+    const byKey = new Map(studentsFor(S.view).map(s => [s.key, s]));
+    for (const key of keys) {
+      const s = byKey.get(key);
+      const gs = Math.min(g, capFor(key));    // a late student gets no more than their max
+      if (!s || same(gs, valueOf(key))) continue;
+      queueSave({ date: S.date, section: S.view, student: s.name, grade: gs, table: s.table, group: s.group });
+      const row = rowFor(key);
+      if (row) {
+        const box = row.querySelector('input.grade');
+        box.value = fmt(gs);
+        showInvalid(row, false);
+      }
+    }
+    input.value = '';
+  }
+
+  function queueSave(p) {
+    const pk = p.date + '|' + p.section + '|' + p.student;
+    delete S.lateFilled[pk];    // any other grade replaces the one Late filled in (setLateness re-marks its own)
+    S.pending[pk] = Object.assign(p, { state: 'queued', since: Date.now() });
+    savePending();
+    const row = rowFor(p.section + '|' + p.student);
+    if (row) paintRow(row);
+    refreshCounts();
+    flush();
+  }
+
+  /**
+   * The Late button: flags a student as 1–5 minutes late (the picker under their name changes that) and fills in
+   * their max if they have no grade yet, or clears it.
+   */
+  function toggleLate(btn) {
+    setLateness(btn.closest('.row'), !lateOf(btn.dataset.late), LATE_STEPS[0][0]);
+  }
+
+  /** One of the minutes buttons under a late student's name. */
+  function pickMinutes(btn) {
+    const row = btn.closest('.row');
+    const m = Number(btn.dataset.mins);
+    if (lateOf(row.dataset.key) && minutesOf(row.dataset.key) === m) return;
+    setLateness(row, true, m);
+  }
+
+  /**
+   * Flag, re-time or clear a late student. An ungraded student gets their max filled in and saved: TAs read the
+   * max as the grade, so it has to be one. After that the grade follows the new max when it was at the old one
+   * (full credit stays full credit), and anything above the new max comes down to it. Other grades are left alone.
+   * Clearing Late empties a box that Late filled in and nobody changed, so a mis-tap doesn't grade anyone.
+   */
+  function setLateness(row, late, minutes) {
+    const key = row.dataset.key;
+    const input = row.querySelector('input.grade');
+    const i = key.indexOf('|');
+    const section = key.slice(0, i), student = key.slice(i + 1);
+    const table = normTable(input.dataset.table), group = input.dataset.group || '';
+    const lk = S.date + '|' + key;
+    // Flagging late while the box offers 10: the 10 was never given, so take it back.
+    if (input.dataset.offer) {
+      delete input.dataset.offer;
+      input.value = fmt(valueOf(key));
+    } else if (input.dataset.touched) {
+      commit(input);    // a grade typed but not saved yet goes in first, so Late can't write over it
+    }
+    const oldMax = maxFor(key);
+    S.pending[lk + '|late'] = {
+      kind: 'late', date: S.date, section, student, late, minutes: late ? minutes : '',
+      table, group, state: 'queued', since: Date.now()
+    };
+    savePending();
+    const newMax = maxFor(key);
+    const g = valueOf(key);
+    const empty = fmt(g) === '' && input.value.trim() === '';    // a typed grade that isn't valid isn't empty
+    const byLate = S.lateFilled[lk] !== undefined && fmt(g) !== '' && same(g, S.lateFilled[lk]);
+    let to = null;
+    if (empty) {
+      if (late && newMax !== null) to = newMax;
+    } else if (!late && byLate) {
+      to = '';
+    } else if (fmt(g) !== '' && newMax !== null && newMax !== oldMax) {
+      if (Number(g) > newMax || Number(g) === oldMax) to = newMax;
+    }
+    if (to !== null) {
+      input.value = fmt(to);
+      showInvalid(row, false);
+      queueSave({ date: S.date, section, student, grade: to, table, group });
+      if (late && (empty || byLate)) S.lateFilled[lk] = to;
+    }
+    paintRow(row);
+    refreshCounts();
+    flush();
+  }
+
+  function flush() {
+    for (const [pk, p] of Object.entries(S.pending)) {
+      if (inflight.size >= 4) break;
+      // One request per student at a time, so saves can't land out of order.
+      if (p.state !== 'queued' || inflight.has(pk)) continue;
+      send(pk, p);
+    }
+    updateStatus();
+  }
+
+  function send(pk, p) {
+    const token = {};
+    inflight.set(pk, token);
+    p.state = 'saving';
+    p.sentAt = Date.now();
+    const late = p.kind === 'late';
+    const who = { date: p.date, section: p.section, student: p.student, table: p.table, group: p.group, by: S.name };
+    const request = late
+      ? call('setLate', Object.assign({ late: p.late, minutes: p.minutes }, who))
+      : call('saveGrade', Object.assign({ grade: p.grade }, who));
+    request.then(res => {
+      S.retryDelay = 0;
+      if (p.date === S.date) {
+        const key = p.section + '|' + p.student;
+        const old = S.grades[key] || ['', '', 0, p.table, p.group, false, 0, ''];
+        S.grades[key] = late
+          ? [old[0], old[1], old[2], old[3], old[4], res.late, res.t, res.minutes || '']
+          : [res.grade, res.by, res.t, old[3], old[4], old[5] || false, old[6] || 0, old[7] || ''];
+      }
+      if (S.pending[pk] === p) delete S.pending[pk];
+    }).catch(err => {
+      // Ignore a failure from a request the watchdog already gave up on and resent.
+      if (S.pending[pk] === p && inflight.get(pk) === token) {
+        p.state = 'error';
+        p.error = errText(err);
+      }
+      scheduleRetry();
+    }).finally(() => {
+      if (inflight.get(pk) === token) inflight.delete(pk);
+      savePending();
+      if (p.date === S.date) {
+        const row = rowFor(p.section + '|' + p.student);
+        if (row) paintRow(row);
+        refreshCounts();
+      }
+      flush();
+    });
+  }
+
+  function scheduleRetry() {
+    if (retryTimer) return;
+    S.retryDelay = Math.min(Math.max(S.retryDelay * 2, 3000), 30000);
+    retryTimer = setTimeout(retryNow, S.retryDelay);
+  }
+
+  function retryNow() {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+    for (const p of Object.values(S.pending)) if (p.state === 'error') p.state = 'queued';
+    flush();
+  }
+
+  // A request can vanish without an answer (a phone that slept mid-save). Don't wait on it forever.
+  setInterval(() => {
+    const now = Date.now();
+    for (const [pk, p] of Object.entries(S.pending)) {
+      if (p.state !== 'saving' || now - p.sentAt < STUCK_SAVE_MS) continue;
+      inflight.delete(pk);
+      p.state = 'error';
+      p.error = 'no answer from Google';
+      const row = p.date === S.date && rowFor(p.section + '|' + p.student);
+      if (row) paintRow(row);
+      scheduleRetry();
+    }
+    updateStatus();
+  }, 2000);
+
+  // ------------------------------------------------------------ live updates
+
+  let pollTimer = null;
+  let polling = false;
+
+  async function poll() {
+    clearTimeout(pollTimer);
+    if (polling || !S.roster) return;
+    if (document.hidden && S.loadedDate === S.date) {
+      pollTimer = setTimeout(poll, POLL_MS);
+      return;
+    }
+    polling = true;
+    const date = S.date;
+    try {
+      const res = await call('getDay', date, S.loadedDate === date ? S.v : null);
+      S.pollFails = 0;
+      if (date === S.date) {
+        if (res.grades) merge(res);
+        else S.v = res.v;
+      }
+    } catch (e) {
+      S.pollFails++;
+    } finally {
+      polling = false;
+      updateStatus();
+      pollTimer = setTimeout(poll, date !== S.date ? 0 : POLL_MS);
+    }
+  }
+
+  function merge(res) {
+    // A poll that left before one of our saves landed shouldn't roll that save back.
+    for (const [k, g] of Object.entries(S.grades)) {
+      const r = res.grades[k];
+      if (!r) {
+        if (g[2] || g[6]) res.grades[k] = g;
+        continue;
+      }
+      if (g[2] && (r[2] || 0) < g[2]) { r[0] = g[0]; r[1] = g[1]; r[2] = g[2]; }
+      if (g[6] && (r[6] || 0) < g[6]) { r[5] = g[5]; r[6] = g[6]; r[7] = g[7]; }
+    }
+    const before = S.grades;
+    const first = S.loadedDate !== S.date;
+    S.grades = res.grades;
+    S.v = res.v;
+    S.loadedDate = S.date;
+    if (first) {
+      renderTabs();
+      renderStrip();
+      renderMain();
+      return;
+    }
+    if (S.view === 'overview') { refreshCounts(); return; }
+
+    const shownKeys = new Set();
+    els.main.querySelectorAll('.row').forEach(row => {
+      const key = row.dataset.key;
+      shownKeys.add(key);
+      const input = row.querySelector('input.grade');
+      const want = fmt(valueOf(key));
+      const b = before[key], a = S.grades[key];
+      const changed = (b ? fmt(b[0]) : '') !== (a ? fmt(a[0]) : '') || !!(b && b[5]) !== !!(a && a[5])
+        || (b && b[7] || '') !== (a && a[7] || '');
+      if (input !== document.activeElement && !row.classList.contains('invalid') && !same(input.value, want)) {
+        input.value = want;
+      }
+      if (changed && input !== document.activeElement) {
+        row.classList.remove('flash');
+        void row.offsetWidth;
+        row.classList.add('flash');
+      }
+      paintRow(row);
+    });
+    // Someone added a student who isn't on the roster: show them once nobody is mid-entry.
+    const sec = S.view + '|';
+    if (Object.keys(S.grades).some(k => k.startsWith(sec) && !shownKeys.has(k) && !before[k]
+        && (fmt(S.grades[k][0]) !== '' || S.grades[k][5]))) {
+      S.needsRender = true;
+      renderWhenIdle();
+    }
+    refreshCounts();
+  }
+
+  function renderWhenIdle() {
+    if (!S.needsRender) return;
+    const a = document.activeElement;
+    if (a && a.tagName === 'INPUT' && els.main.contains(a)) return;
+    const y = window.scrollY;
+    if (S.view === 'overview') renderMain(); else renderList();
+    window.scrollTo(0, y);
+  }
+
+  // ------------------------------------------------------------ navigation
+
+  function setView(view) {
+    if (view === S.view) return;
+    S.view = view;
+    S.q = '';
+    store.set('view', view);
+    renderTabs();
+    renderStrip();
+    renderMain();
+    window.scrollTo(0, 0);
+  }
+
+  function setDate(date) {
+    if (!date || date === S.date) return;
+    S.date = date;
+    S.grades = {};
+    S.v = null;
+    S.loadedDate = null;
+    renderTop();
+    renderMain();
+    updateStatus();
+    poll();
+  }
+
+  function focusNext(input) {
+    const boxes = [...els.main.querySelectorAll('input.grade')];
+    const next = boxes[boxes.indexOf(input) + 1];
+    if (next) {
+      next.focus({ preventScroll: true });
+      next.closest('.row').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else {
+      input.blur();
+    }
+  }
+
+  // ------------------------------------------------------------ events
+
+  let searchTimer = null;
+
+  els.tabs.addEventListener('click', e => {
+    const b = e.target.closest('[data-view]');
+    if (b) setView(b.dataset.view);
+  });
+
+  function jumpToTable(table) {
+    let card = $('table-' + table);
+    if (!card) {
+      // Hidden by the search box or the "only ungraded" filter; clear them.
+      S.q = '';
+      S.onlyMissing = false;
+      renderSection(S.view);
+      card = $('table-' + table);
+    }
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  els.strip.addEventListener('click', e => {
+    const b = e.target.closest('[data-table]');
+    if (b) jumpToTable(b.dataset.table);
+  });
+
+  els.date.addEventListener('change', () => setDate(els.date.value));
+  els.prev.addEventListener('click', () => setDate(S.dates[S.dates.indexOf(S.date) - 1]));
+  els.next.addEventListener('click', () => setDate(S.dates[S.dates.indexOf(S.date) + 1]));
+
+  els.main.addEventListener('click', e => {
+    const lateBtn = e.target.closest('[data-late]');
+    if (lateBtn) { toggleLate(lateBtn); return; }
+    const minBtn = e.target.closest('[data-mins]');
+    if (minBtn) { pickMinutes(minBtn); return; }
+    const jump = e.target.closest('[data-jump]');
+    if (jump) { jumpToTable(jump.dataset.jump); return; }
+    const card = e.target.closest('[data-go]');
+    if (!card) return;
+    const t = tally(card.dataset.go);
+    S.onlyMissing = t.graded < t.total;
+    setView(card.dataset.go);
+  });
+
+  els.main.addEventListener('keydown', e => {
+    // Some phone keyboards report the Enter/Next key only by its key code.
+    if (e.key !== 'Enter' && e.keyCode !== 13) return;
+    const t = e.target;
+    if (t.classList.contains('grade')) {
+      e.preventDefault();
+      // Enter on a box nobody typed in means the faint 10, or a late student's max.
+      if (t.value.trim() === '' && !t.dataset.touched) {
+        const saved = fmt(valueOf(t.dataset.key));
+        if (saved !== '') { t.value = saved; focusNext(t); return; }   // someone else graded them meanwhile
+        const g = offerFor(t.dataset.key);
+        if (g === null) { setMsg(t.closest('.row'), 'Late: pick how late, or type the grade', 'note'); return; }
+        t.value = String(g);
+      }
+      if (commit(t)) focusNext(t);
+    } else if (t.classList.contains('fill-in')) {
+      e.preventDefault();
+      commitFill(t);
+      t.blur();
+    }
+  });
+
+  els.main.addEventListener('change', e => {
+    const t = e.target;
+    if (t.classList.contains('grade')) commit(t);
+    else if (t.classList.contains('fill-in')) commitFill(t);
+    else if (t.id === 'missing') { S.onlyMissing = t.checked; renderList(); }
+    else if (t.id === 'myname') { S.name = t.value.trim(); store.set('name', S.name); }
+  });
+
+  els.main.addEventListener('input', e => {
+    const t = e.target;
+    if (t.id === 'q') {
+      S.q = t.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(renderList, 120);
+    } else if (t.classList.contains('grade')) {
+      delete t.dataset.offer;
+      t.dataset.touched = '1';
+      const ok = parseGrade(t.value, capFor(t.dataset.key)) !== null;
+      showInvalid(t.closest('.row'), !ok);
+      // Save after a short pause too, in case the page is closed without leaving the box.
+      clearTimeout(idleTimers.get(t));
+      if (ok) idleTimers.set(t, setTimeout(() => commit(t), 1500));
+    }
+  });
+
+  // How a grade box got focus decides what it does. A tapped or clicked empty box fills in 10, and the 10
+  // is kept when the TA moves on, however they leave: iPhone number pads have no Enter key, so leaving
+  // is the only way to accept it there. A box reached with Enter, Next or Tab only shows a faint 10:
+  // Enter gives it, moving on leaves the box empty, so passing a student never grades them.
+  // Either way, a box never looks graded unless that grade is saved or on its way.
+  let lastPointer = { el: null, t: 0 };
+  document.addEventListener('pointerdown', e => { lastPointer = { el: e.target, t: Date.now() }; }, true);
+
+  function pointedAt(el) { return lastPointer.el === el && Date.now() - lastPointer.t < 3000; }
+
+  function selectAll(t) {
+    setTimeout(() => {
+      if (document.activeElement !== t) return;
+      try { t.setSelectionRange(0, t.value.length); } catch (err) { t.select(); }
+    }, 0);
+  }
+
+  function offer(t) {
+    const g = offerFor(t.dataset.key);
+    if (t.disabled || t.value !== '' || g === null) return;
+    t.value = String(g);
+    t.dataset.offer = '1';
+    selectAll(t);
+  }
+
+  /** The TA left a box that shows the offered 10: record it, unless that 10 no longer applies. */
+  function settleOffer(t) {
+    delete t.dataset.offer;
+    const key = t.dataset.key;
+    const row = t.closest('.row');
+    const p = lastPointer.el;
+    const toOwnLate = p && p.closest && Date.now() - lastPointer.t < 3000 && !!p.closest('.late-btn, .late-pick')
+      && p.closest('.row') === row;
+    // Went straight to this student's Late or minutes buttons, or someone else flagged or graded them meanwhile.
+    if (toOwnLate || !same(t.value, offerFor(key)) || fmt(valueOf(key)) !== '') {
+      t.value = fmt(valueOf(key));
+      showInvalid(row, false);
+      return;
+    }
+    commit(t);
+  }
+
+  /** Save whatever the box being edited shows before the page is hidden or closed. */
+  function commitActive() {
+    const a = document.activeElement;
+    if (!a || !a.classList || !a.classList.contains('grade') || !els.main.contains(a)) return;
+    if (a.dataset.offer) settleOffer(a);
+    else if (a.dataset.touched) commit(a);
+  }
+
+  els.main.addEventListener('focusin', e => {
+    const t = e.target;
+    if (!t.classList.contains('grade') && !t.classList.contains('fill-in')) return;
+    delete t.dataset.touched;
+    if (t.classList.contains('grade') && pointedAt(t)) offer(t);
+    selectAll(t);
+  });
+
+  els.main.addEventListener('click', e => {
+    const t = e.target;
+    if (!t.classList || !t.classList.contains('grade') || t !== document.activeElement) return;
+    // Tapping the box you're already on (say, after Next on an iPhone) fills in the 10 as well.
+    if (t.dataset.offer) selectAll(t);
+    else if (!t.dataset.touched) offer(t);
+  });
+
+  els.main.addEventListener('focusout', e => {
+    const t = e.target;
+    if (t.dataset && t.dataset.offer) settleOffer(t);
+    setTimeout(renderWhenIdle, 60);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { commitActive(); savePending(); }
+    else { poll(); retryNow(); }
+  });
+  window.addEventListener('pagehide', () => { commitActive(); savePending(); });
+  window.addEventListener('online', retryNow);
+  window.addEventListener('offline', updateStatus);
+  window.addEventListener('resize', measureHeader);
+  els.retry.addEventListener('click', retryNow);
+  // Closing or leaving the page with grades still unsaved asks first. (iPhones never show this prompt,
+  // which is why unsaved grades are also kept on the device and sent the next time the page opens.)
+  window.addEventListener('beforeunload', e => {
+    commitActive();
+    if (Object.keys(S.pending).length) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // ------------------------------------------------------------ start
+
+  function normalizeRoster(r) {
+    const out = {};
+    for (const sec of SECTIONS) {
+      out[sec] = (r[sec] || []).map(([name, table, group]) =>
+        [String(name), normTable(table), String(group || '').toUpperCase()]);
+    }
+    return out;
+  }
+
+  function load() {
+    els.main.replaceChildren(h('p', { class: 'empty' }, 'Loading the roster…'));
+    call('init').then(res => {
+      S.roster = normalizeRoster(res.roster);
+      S.tas = res.tas || {};
+      S.me = res.me || '';
+      S.sheetUrl = res.sheetUrl || '';
+      renderTop();
+      renderMain();
+      updateStatus();
+      poll();
+      flush();
+    }).catch(err => {
+      els.main.replaceChildren(h('div', { class: 'fatal' },
+        h('p', {}, h('b', {}, 'Couldn’t load the roster.')),
+        h('p', { class: 'fatal-msg' }, errText(err)),
+        h('button', { class: 'btn', onclick: load }, 'Try again')));
+    });
+  }
+
+  // Pick up roster edits (adds, drops, table moves) every few minutes.
+  setInterval(() => {
+    if (!S.roster) return;
+    call('getTaSchedule').then(t => {
+      if (JSON.stringify(t || {}) === JSON.stringify(S.tas)) return;
+      S.tas = t || {};
+      const a = document.activeElement;
+      if (!(a && a.tagName === 'INPUT' && els.main.contains(a))) renderMain();
+    }).catch(() => {});
+    call('getRoster').then(r => {
+      const next = normalizeRoster(r);
+      if (JSON.stringify(next) === JSON.stringify(S.roster)) return;
+      S.roster = next;
+      S.needsRender = true;
+      renderWhenIdle();
+      refreshCounts();
+    }).catch(() => {});
+  }, 5 * 60 * 1000);
+
+  if (!window.google || !google.script) {
+    els.main.replaceChildren(h('p', { class: 'empty' }, 'Open this page through the web app link.'));
+    return;
+  }
+  renderTop();
+  updateStatus();
+  load();
+})();
+</script>
+</body>
+</html>
