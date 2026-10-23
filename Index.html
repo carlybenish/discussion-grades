@@ -277,7 +277,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 8px 6px;    /* narrow across, so names keep room beside the Absent and Late buttons */
     min-height: 52px;
     padding: 6px 10px 6px 14px;
     border-top: 1px solid var(--line);
@@ -301,10 +301,10 @@
   .msg.note { color: var(--warn); }
   .msg:empty { display: none; }
   .mark { flex: none; width: 18px; text-align: center; font-size: 14px; font-weight: 700; }
-  .late-btn {
+  .late-btn, .absent-btn {
     flex: none;
     height: 28px;
-    padding: 0 9px;
+    padding: 0 7px;
     border: 1.5px solid var(--line-strong);
     border-radius: 14px;
     background: transparent;
@@ -313,6 +313,8 @@
     font-weight: 650;
   }
   .late-btn[aria-pressed="true"] { border-color: var(--warn); background: var(--warn-soft); color: var(--warn); }
+  /* Absent saves a 0, so it shows pressed for any 0, however it was entered. */
+  .absent-btn[aria-pressed="true"] { border-color: var(--muted); background: var(--line); color: var(--ink); }
   .row.is-late { box-shadow: inset 3px 0 0 var(--warn); }
   /* Late fills in the max, so an empty late box is one someone cleared: it looks empty too, "max 9" only while on it. */
   .row.is-late .grade:focus::placeholder { color: var(--warn); font-size: 15px; font-weight: 650; opacity: .7; }
@@ -962,6 +964,8 @@
         h('span', { class: 'name' }, s.name),
         s.extra ? h('span', { class: 'tag' }, 'not on roster') : null,
         h('span', { class: 'msg' })),
+      h('button', { type: 'button', class: 'absent-btn', 'data-absent': s.key, 'aria-pressed': 'false',
+        'aria-label': 'Absent: ' + s.name, disabled: !loaded }, 'Absent'),
       h('button', { type: 'button', class: 'late-btn', 'data-late': s.key, 'aria-pressed': 'false',
         'aria-label': 'Late: ' + s.name, disabled: !loaded }, 'Late'),
       h('span', { class: 'mark', 'aria-hidden': 'true' }),
@@ -988,9 +992,12 @@
     else if (g && fmt(g[0]) !== '') state = 'saved';
     row.dataset.s = state;
     row.classList.toggle('is-late', late);
-    row.classList.toggle('is-zero', isGraded(key) && Number(valueOf(key)) === 0);
+    const zero = isGraded(key) && Number(valueOf(key)) === 0;
+    row.classList.toggle('is-zero', zero);
     const btn = row.querySelector('.late-btn');
     if (btn) btn.setAttribute('aria-pressed', String(late));
+    const absentBtn = row.querySelector('.absent-btn');
+    if (absentBtn) absentBtn.setAttribute('aria-pressed', String(zero));
     const max = maxFor(key);
     const box = row.querySelector('input.grade');
     if (box) box.placeholder = !late ? String(DEFAULT_GRADE) : max === null ? 'late' : 'max ' + max;
@@ -1164,6 +1171,23 @@
    */
   function toggleLate(btn) {
     setLateness(btn.closest('.row'), !lateOf(btn.dataset.late), LATE_STEPS[0][0]);
+  }
+
+  /**
+   * The Absent button: saves a 0, the same as typing it (so the name is struck through), or clears a 0 back to
+   * empty. Marking someone absent also takes off their Late flag, since they weren't late.
+   */
+  function toggleAbsent(btn) {
+    const row = btn.closest('.row');
+    const key = row.dataset.key;
+    const input = row.querySelector('input.grade');
+    const absent = isGraded(key) && Number(valueOf(key)) === 0;
+    clearTimeout(idleTimers.get(input));
+    delete input.dataset.offer;    // a 10 the box was offering was never given
+    delete input.dataset.touched;
+    input.value = absent ? '' : '0';
+    commit(input);
+    if (!absent && lateOf(key)) setLateness(row, false);
   }
 
   /** One of the minutes buttons under a late student's name. */
@@ -1461,6 +1485,8 @@
   els.main.addEventListener('click', e => {
     const lateBtn = e.target.closest('[data-late]');
     if (lateBtn) { toggleLate(lateBtn); return; }
+    const absentBtn = e.target.closest('[data-absent]');
+    if (absentBtn) { toggleAbsent(absentBtn); return; }
     const minBtn = e.target.closest('[data-mins]');
     if (minBtn) { pickMinutes(minBtn); return; }
     const jump = e.target.closest('[data-jump]');
@@ -1550,10 +1576,10 @@
     const key = t.dataset.key;
     const row = t.closest('.row');
     const p = lastPointer.el;
-    const toOwnLate = p && p.closest && Date.now() - lastPointer.t < 3000 && !!p.closest('.late-btn, .late-pick')
-      && p.closest('.row') === row;
-    // Went straight to this student's Late or minutes buttons, or someone else flagged or graded them meanwhile.
-    if (toOwnLate || !same(t.value, offerFor(key)) || fmt(valueOf(key)) !== '') {
+    const toOwnButtons = p && p.closest && Date.now() - lastPointer.t < 3000
+      && !!p.closest('.late-btn, .late-pick, .absent-btn') && p.closest('.row') === row;
+    // Went straight to this student's Late, Absent or minutes buttons, or someone else flagged or graded them meanwhile.
+    if (toOwnButtons || !same(t.value, offerFor(key)) || fmt(valueOf(key)) !== '') {
       t.value = fmt(valueOf(key));
       showInvalid(row, false);
       return;

@@ -55,3 +55,4 @@ Your settings used to be at the top of Code.gs. Move them before you paste the n
   Enter by hand tab instead of to the wrong student.
 - **Late button.** The picker now fits six ranges on a phone. New setups start with one point off per 5 minutes
   (1–5 min → 9, 6–10 → 8, … 26+ → 4). If you already have `lateSteps` in your settings, yours stay.
+- **Absent button** next to Late: one tap gives a 0, and tapping it again clears the 0.
